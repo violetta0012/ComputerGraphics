@@ -5,12 +5,16 @@ import javafx.scene.canvas.Canvas
 import javafx.scene.canvas.GraphicsContext
 import javafx.scene.control.ToggleButton
 import javafx.scene.control.ToggleGroup
+import javafx.scene.image.Image
 import javafx.scene.image.WritableImage
 import javafx.scene.layout.FlowPane
 import javafx.scene.paint.Color
 import javafx.scene.shape.Line
+import javafx.stage.FileChooser
 import javafx.stage.Stage
 import java.awt.Point
+import java.io.File
+import java.io.FileInputStream
 
 class Task1(primaryStage: Stage) {
     init {
@@ -29,10 +33,12 @@ class Task1(primaryStage: Stage) {
         val clearButton = ToggleButton("Очистить")
         val drawButton = ToggleButton("Рисовать")
         val fillButton = ToggleButton("Заливка")
+        val imageButton = ToggleButton("Заливка изображением")
         clearButton.toggleGroup = group
         drawButton.toggleGroup = group
         fillButton.toggleGroup = group
-        root.children.addAll(clearButton, drawButton, fillButton)
+        imageButton.toggleGroup = group
+        root.children.addAll(clearButton, drawButton, fillButton, imageButton)
 
         var line = Line(0.0, 0.0, 0.0, 0.0)
 
@@ -48,7 +54,7 @@ class Task1(primaryStage: Stage) {
                 line.startX = it.sceneX
                 line.startY = it.sceneY
                 if (line.endX != 0.0 && line.endY != 0.0) {
-                    context.stroke = Color.RED
+                    context.stroke = Color.GOLD
                     context.strokeLine(line.startX, line.startY, line.endX, line.endY)
                 }
             }
@@ -58,12 +64,27 @@ class Task1(primaryStage: Stage) {
             root.setOnMouseClicked {
                 val image = canvas.snapshot(null, null)
                 val start = Point(it.sceneX.toInt(), it.sceneY.toInt())
-                fillWithColor(context, start, Color.AQUA, image)
+                fillWithColor(context, start, Color.CADETBLUE, image)
+            }
+        }
+
+        imageButton.setOnAction {
+            val fileChooser = FileChooser()
+            fileChooser.title = "Доступные файлы"
+            fileChooser.initialDirectory = File("/Users/violettagerasimova/IdeaProjects/ComputerGraphics/src/Pictures")
+            fileChooser.extensionFilters.add(FileChooser.ExtensionFilter("Images", "*.png", "*.jpg"))
+            val selectedFile = fileChooser.showOpenDialog(primaryStage)
+            root.setOnMouseClicked {
+                val start = Point(it.sceneX.toInt(), it.sceneY.toInt())
+                val image = canvas.snapshot(null, null)
+                val picture = Image(FileInputStream(selectedFile))
+                val pictureStart = Point(0, 0)
+                fillWithImage(context, start, picture, image)
             }
         }
     }
 
-    fun fillWithColor(gc: GraphicsContext, start: Point, color: Color, image: WritableImage) {
+    private fun fillWithColor(gc: GraphicsContext, start: Point, color: Color, image: WritableImage) {
         val pixelReader = image.pixelReader
         val backgroundColor = pixelReader.getColor(start.x, start.y)
         if (backgroundColor == color)
@@ -78,8 +99,10 @@ class Task1(primaryStage: Stage) {
             while (rightX + 1 < gc.canvas.width.toInt() && pixelReader.getColor(rightX + 1, start.y) == backgroundColor)
                 rightX++
 
-            gc.stroke = color
-            gc.strokeLine(leftX.toDouble(), start.y.toDouble(), rightX.toDouble(), start.y.toDouble());
+            val pixelWriter = image.pixelWriter
+            for (x in leftX until rightX)
+                pixelWriter.setColor(x, start.y, color)
+            gc.drawImage(image, 0.0, 0.0)
 
             for (x in leftX until rightX) {
                 if (start.y - 1 > 0 && pixelReader.getColor(x, start.y - 1) == backgroundColor)
@@ -87,6 +110,37 @@ class Task1(primaryStage: Stage) {
                 if (start.y + 1 < gc.canvas.height && pixelReader.getColor(x, start.y + 1) == backgroundColor)
                     fillWithColor(gc, Point(x, start.y + 1), color, image)
             }
+        }
+    }
+
+    private fun fillWithImage(gc: GraphicsContext, start: Point, picture: Image, image: WritableImage, pictureStart: Point = Point(0, 0)) {
+        val imageReader = image.pixelReader
+        val pictureReader = picture.pixelReader
+        val backgroundColor = imageReader.getColor(start.x, start.y)
+        val imageWriter = image.pixelWriter
+
+        val modY = (start.y - pictureStart.y) % picture.height.toInt()
+        pictureStart.y = if (modY < 0) (modY + picture.height.toInt()) else modY
+
+        var leftX = start.x
+        while (leftX - 1 > 0 && imageReader.getColor(leftX - 1, start.y) == backgroundColor)
+            leftX--
+        var rightX = start.x
+        while (rightX + 1 < gc.canvas.width.toInt() && imageReader.getColor(rightX + 1, start.y) == backgroundColor)
+            rightX++
+
+        for (x in leftX until rightX) {
+            val modX = (x - pictureStart.x) % picture.width.toInt()
+            pictureStart.x = if (modX < 0) (modX + picture.width.toInt()) else modX
+            imageWriter.setColor(start.x, start.y, pictureReader.getColor(pictureStart.x, pictureStart.y))
+        }
+        gc.drawImage(image, 0.0, 0.0)
+
+        for (x in leftX until rightX) {
+            if (start.y - 1 > 0 && imageReader.getColor(x, start.y - 1) == backgroundColor)
+                fillWithImage(gc, Point(x, start.y - 1), picture, image, Point(pictureStart.x, pictureStart.y - 1))
+            if (start.y + 1 < gc.canvas.height && imageReader.getColor(x, start.y + 1) == backgroundColor)
+                fillWithImage(gc, Point(x, start.y + 1), picture, image, Point(pictureStart.x, pictureStart.y + 1))
         }
     }
 }
