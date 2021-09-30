@@ -100,11 +100,11 @@ class Task1(primaryStage: Stage) {
                 rightX++
 
             val pixelWriter = image.pixelWriter
-            for (x in leftX until rightX)
+            for (x in leftX..rightX)
                 pixelWriter.setColor(x, start.y, color)
             gc.drawImage(image, 0.0, 0.0)
 
-            for (x in leftX until rightX) {
+            for (x in leftX..rightX) {
                 if (start.y - 1 > 0 && pixelReader.getColor(x, start.y - 1) == backgroundColor)
                     fillWithColor(gc, Point(x, start.y - 1), color, image)
                 if (start.y + 1 < gc.canvas.height && pixelReader.getColor(x, start.y + 1) == backgroundColor)
@@ -113,35 +113,50 @@ class Task1(primaryStage: Stage) {
         }
     }
 
-    private fun fillWithPicture(gc: GraphicsContext, start: Point, picture: Image, image: WritableImage, pictureStart: Point = Point(0, 0)) {
+    private fun fillWithPicture(gc: GraphicsContext, start: Point, picture: Image, image: WritableImage) {
+        fillWithPicture(gc, start, picture, image, Point(picture.width.toInt() / 2, picture.height.toInt() / 2))
+    }
+
+    private fun fillWithPicture(gc: GraphicsContext, start: Point, picture: Image, image: WritableImage, pictureStart: Point) {
         val imageReader = image.pixelReader
         val pictureReader = picture.pixelReader
         val backgroundColor = imageReader.getColor(start.x, start.y)
         val imageWriter = image.pixelWriter
-        var picStart = pictureStart
+        var picStart = Point(pictureStart.x, pictureStart.y)
 
-        val modY = (start.y - picStart.y) % picture.height.toInt()
-        picStart.y = if (modY < 0) (modY + picture.height.toInt()) else modY
+        while (picStart.y < 0)
+            picStart.y += picture.height.toInt()
+        if (picStart.y >= picture.height)
+            picStart.y %= picture.height.toInt()
 
         var leftX = start.x
-        while (leftX - 1 > 0 && imageReader.getColor(leftX - 1, start.y) == backgroundColor)
+        var leftPicStart = picStart.x
+        while (leftX - 1 >= 0 && imageReader.getColor(leftX - 1, start.y) == backgroundColor) {
             leftX--
+            leftPicStart--
+        }
         var rightX = start.x
         while (rightX + 1 < gc.canvas.width.toInt() && imageReader.getColor(rightX + 1, start.y) == backgroundColor)
             rightX++
 
-        for (x in leftX until rightX) {
-            val modX = (x - picStart.x) % picture.width.toInt()
-            picStart.x = if (modX < 0) (modX + picture.width.toInt()) else modX
-            imageWriter.setColor(start.x, start.y, pictureReader.getColor(picStart.x, picStart.y))
+        picStart.x = leftPicStart - 1
+        while (picStart.x < 0)
+            picStart.x += picture.width.toInt()
+        for (x in leftX..rightX) {
+            picStart.x++
+            if (picStart.x >= picture.width)
+                picStart.x %= picture.width.toInt()
+            imageWriter.setColor(x, start.y, pictureReader.getColor(picStart.x, picStart.y))
         }
         gc.drawImage(image, 0.0, 0.0)
 
-        for (x in leftX until rightX) {
+        picStart.x = leftPicStart - 1
+        for (x in leftX..rightX) {
+            picStart.x++
             if (start.y - 1 > 0 && imageReader.getColor(x, start.y - 1) == backgroundColor)
-                fillWithPicture(gc, Point(x, start.y - 1), picture, image, Point(pictureStart.x, pictureStart.y - 1))
+                fillWithPicture(gc, Point(x, start.y - 1), picture, image, Point(picStart.x, picStart.y - 1))
             if (start.y + 1 < gc.canvas.height && imageReader.getColor(x, start.y + 1) == backgroundColor)
-                fillWithPicture(gc, Point(x, start.y + 1), picture, image, Point(pictureStart.x, pictureStart.y + 1))
+                fillWithPicture(gc, Point(x, start.y + 1), picture, image, Point(picStart.x, picStart.y + 1))
         }
     }
 }
