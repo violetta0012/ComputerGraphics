@@ -79,7 +79,7 @@ class Task1(primaryStage: Stage) {
                 val image = canvas.snapshot(null, null)
                 val picture = Image(FileInputStream(selectedFile))
                 val pictureStart = Point(0, 0)
-                fillWithImage(context, start, picture, image)
+                fillWithPicture(context, start, picture, image)
             }
         }
     }
@@ -113,14 +113,15 @@ class Task1(primaryStage: Stage) {
         }
     }
 
-    private fun fillWithImage(gc: GraphicsContext, start: Point, picture: Image, image: WritableImage, pictureStart: Point = Point(0, 0)) {
+    private fun fillWithPicture(gc: GraphicsContext, start: Point, picture: Image, image: WritableImage, pictureStart: Point = Point(0, 0)) {
         val imageReader = image.pixelReader
         val pictureReader = picture.pixelReader
         val backgroundColor = imageReader.getColor(start.x, start.y)
         val imageWriter = image.pixelWriter
+        var picStart = pictureStart
 
-        val modY = (start.y - pictureStart.y) % picture.height.toInt()
-        pictureStart.y = if (modY < 0) (modY + picture.height.toInt()) else modY
+        val modY = (start.y - picStart.y) % picture.height.toInt()
+        picStart.y = if (modY < 0) (modY + picture.height.toInt()) else modY
 
         var leftX = start.x
         while (leftX - 1 > 0 && imageReader.getColor(leftX - 1, start.y) == backgroundColor)
@@ -130,17 +131,17 @@ class Task1(primaryStage: Stage) {
             rightX++
 
         for (x in leftX until rightX) {
-            val modX = (x - pictureStart.x) % picture.width.toInt()
-            pictureStart.x = if (modX < 0) (modX + picture.width.toInt()) else modX
-            imageWriter.setColor(start.x, start.y, pictureReader.getColor(pictureStart.x, pictureStart.y))
+            val modX = (x - picStart.x) % picture.width.toInt()
+            picStart.x = if (modX < 0) (modX + picture.width.toInt()) else modX
+            imageWriter.setColor(start.x, start.y, pictureReader.getColor(picStart.x, picStart.y))
         }
         gc.drawImage(image, 0.0, 0.0)
 
         for (x in leftX until rightX) {
             if (start.y - 1 > 0 && imageReader.getColor(x, start.y - 1) == backgroundColor)
-                fillWithImage(gc, Point(x, start.y - 1), picture, image, Point(pictureStart.x, pictureStart.y - 1))
+                fillWithPicture(gc, Point(x, start.y - 1), picture, image, Point(pictureStart.x, pictureStart.y - 1))
             if (start.y + 1 < gc.canvas.height && imageReader.getColor(x, start.y + 1) == backgroundColor)
-                fillWithImage(gc, Point(x, start.y + 1), picture, image, Point(pictureStart.x, pictureStart.y + 1))
+                fillWithPicture(gc, Point(x, start.y + 1), picture, image, Point(pictureStart.x, pictureStart.y + 1))
         }
     }
 }
