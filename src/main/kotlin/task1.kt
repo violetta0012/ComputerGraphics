@@ -19,7 +19,7 @@ import java.io.FileInputStream
 class Task1(primaryStage: Stage) {
     init {
         val root = FlowPane()
-        val scene = Scene(root, 900.0, 500.0)
+        val scene = Scene(root, 600.0, 500.0)
         val canvas = Canvas(600.0, 400.0)
         val context = canvas.graphicsContext2D
 
@@ -34,11 +34,13 @@ class Task1(primaryStage: Stage) {
         val drawButton = ToggleButton("Рисовать")
         val fillButton = ToggleButton("Заливка")
         val imageButton = ToggleButton("Заливка изображением")
+        val boundButton = ToggleButton("Граница")
         clearButton.toggleGroup = group
         drawButton.toggleGroup = group
         fillButton.toggleGroup = group
         imageButton.toggleGroup = group
-        root.children.addAll(clearButton, drawButton, fillButton, imageButton)
+        boundButton.toggleGroup = group
+        root.children.addAll(clearButton, drawButton, fillButton, imageButton, boundButton)
 
         var line = Line(0.0, 0.0, 0.0, 0.0)
 
@@ -54,7 +56,7 @@ class Task1(primaryStage: Stage) {
                 line.startX = it.sceneX
                 line.startY = it.sceneY
                 if (line.endX != 0.0 && line.endY != 0.0) {
-                    context.stroke = Color.GOLD
+                    context.stroke = Color.BLACK
                     context.strokeLine(line.startX, line.startY, line.endX, line.endY)
                 }
             }
@@ -80,6 +82,13 @@ class Task1(primaryStage: Stage) {
                 val picture = Image(FileInputStream(selectedFile))
                 val pictureStart = Point(0, 0)
                 fillWithPicture(context, start, picture, image)
+            }
+        }
+
+        boundButton.setOnAction {
+            root.setOnMouseClicked {
+                val image = canvas.snapshot(null, null)
+                highlightBorder(context, Point(it.sceneX.toInt(), it.sceneY.toInt()), image)
             }
         }
     }
@@ -158,5 +167,51 @@ class Task1(primaryStage: Stage) {
             if (start.y + 1 < gc.canvas.height && imageReader.getColor(x, start.y + 1) == backgroundColor)
                 fillWithPicture(gc, Point(x, start.y + 1), picture, image, Point(picStart.x, picStart.y + 1))
         }
+    }
+
+    private fun highlightBorder(gc: GraphicsContext, start: Point, image: WritableImage) {
+        var result: MutableList<Point> = mutableListOf()
+        val imageReader = image.pixelReader
+        val imageWriter = image.pixelWriter
+        val backgroundColor = imageReader.getColor(start.x, start.y)
+        var currentPoint = Point(start.x, start.y)
+
+        while (imageReader.getColor(currentPoint.x, currentPoint.y) == backgroundColor)
+            currentPoint.x++
+        result.add(Point(currentPoint.x, currentPoint.y))
+
+        val moves = listOf<(Int, Int) -> Point>(
+            {x, y -> Point(x, y + 1)},
+            {x, y -> Point(x + 1, y + 1)},
+            {x, y -> Point(x + 1, y)},
+            {x, y -> Point(x + 1, y - 1)},
+            {x, y -> Point(x, y - 1)},
+            {x, y -> Point(x - 1, y - 1)},
+            {x, y -> Point(x - 1, y)},
+            {x, y -> Point(x - 1, y + 1)},
+        )
+
+        var nextMove = 0
+
+        do {
+            for (ind in moves.indices) {
+                val newInd = (nextMove + ind) % moves.size
+                val newPoint = moves[newInd](currentPoint.x, currentPoint.y)
+                val currentColor = imageReader.getColor(newPoint.x, newPoint.y)
+                if (currentColor == backgroundColor)
+                    continue
+                currentPoint = Point(newPoint.x, newPoint.y)
+                result.add(Point(currentPoint.x, currentPoint.y))
+                nextMove = newInd - 2
+                if (nextMove < 0)
+                    nextMove += moves.size
+                break
+            }
+        } while (currentPoint.x != result[0].x || currentPoint.y != result[0].y)
+
+        for (ind in result.indices) {
+            imageWriter.setColor(result[ind].x, result[ind].y, Color.GOLD)
+        }
+        gc.drawImage(image, 0.0, 0.0)
     }
 }
